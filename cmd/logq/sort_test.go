@@ -39,6 +39,21 @@ func TestSortNumericAllFormats(t *testing.T) {
 	}
 }
 
+// Numbers beyond float64 precision/range must order exactly end-to-end through
+// run(): the large integers must not tie (finding #1) and the huge magnitudes
+// must not fall back to bytewise order (finding #2).
+func TestSortExactNumericThroughRun(t *testing.T) {
+	in := "{\"n\":9007199254740993}\n{\"n\":9007199254740992}\n{\"n\":10e400}\n{\"n\":9e400}\n"
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "sort", "--by", "n"}, in)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := "n=9007199254740992\nn=9007199254740993\nn=9e400\nn=10e400\n"
+	if out != want {
+		t.Errorf("stdout = %q, want %q", out, want)
+	}
+}
+
 func TestSortStrings(t *testing.T) {
 	in := "{\"s\":\"banana\"}\n{\"s\":\"apple\"}\n{\"s\":\"cherry\"}\n"
 	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "sort", "--by", "s"}, in)

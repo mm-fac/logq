@@ -31,6 +31,48 @@ func TestSortNumbersNumerically(t *testing.T) {
 	}
 }
 
+// Large integers beyond float64's 53-bit mantissa must still order exactly:
+// 9007199254740993 and 9007199254740992 both round to 9007199254740992.0 in
+// float64, so a float-based comparator treats them as equal and leaves them in
+// input order. Pins review finding #1.
+func TestSortLargeIntegersExact(t *testing.T) {
+	recs := []*Record{
+		NewRecord().Set("n", json.Number("9007199254740993")),
+		NewRecord().Set("n", json.Number("9007199254740992")),
+	}
+	got := order(Sort(recs, "n", false), "n")
+	want := []any{json.Number("9007199254740992"), json.Number("9007199254740993")}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ascending = %v, want %v", got, want)
+	}
+	gotD := order(Sort(recs, "n", true), "n")
+	wantD := []any{json.Number("9007199254740993"), json.Number("9007199254740992")}
+	if !reflect.DeepEqual(gotD, wantD) {
+		t.Errorf("descending = %v, want %v", gotD, wantD)
+	}
+}
+
+// Magnitudes past float64's range must not fall back to bytewise ordering:
+// 10e400 and 9e400 both overflow to +Inf, and bytewise "10e400" < "9e400"
+// (since '1' < '9') reverses the true numeric order 9e400 < 10e400. Pins review
+// finding #2.
+func TestSortHugeMagnitudeExact(t *testing.T) {
+	recs := []*Record{
+		NewRecord().Set("n", json.Number("10e400")),
+		NewRecord().Set("n", json.Number("9e400")),
+	}
+	got := order(Sort(recs, "n", false), "n")
+	want := []any{json.Number("9e400"), json.Number("10e400")}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ascending = %v, want %v", got, want)
+	}
+	gotD := order(Sort(recs, "n", true), "n")
+	wantD := []any{json.Number("10e400"), json.Number("9e400")}
+	if !reflect.DeepEqual(gotD, wantD) {
+		t.Errorf("descending = %v, want %v", gotD, wantD)
+	}
+}
+
 func TestSortStringsByCanonicalJSON(t *testing.T) {
 	recs := []*Record{
 		NewRecord().Set("s", "banana"),

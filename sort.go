@@ -1,6 +1,10 @@
 package logq
 
-import "sort"
+import (
+	"encoding/json"
+	"math/big"
+	"sort"
+)
 
 // Sort orders records by the top-level field and returns a new slice; the input
 // slice is left untouched.
@@ -46,10 +50,33 @@ func Sort(records []*Record, field string, desc bool) []*Record {
 // numeric when both values are JSON numbers, otherwise bytewise on the canonical
 // JSON rendering.
 func lessValue(a, b any) bool {
-	an, aok := numericValue(a)
-	bn, bok := numericValue(b)
-	if aok && bok {
-		return an < bn
+	// When both sides are JSON number literals, compare them exactly via
+	// math/big.Rat so ordering is correct for every valid JSON number regardless
+	// of precision or magnitude — no float64 round-trip, no overflow fallback.
+	if an, ok := a.(json.Number); ok {
+		if bn, ok := b.(json.Number); ok {
+			if c, exact := compareJSONNumbers(an, bn); exact {
+				return c < 0
+			}
+			// A literal Rat cannot parse (should never happen for valid JSON):
+			// fail safe to the canonical-JSON fallback for this pair.
+			return canonicalJSON(a) < canonicalJSON(b)
+		}
 	}
+	// Any other pair — including a number against a non-number — compares by
+	// canonical JSON rendering, bytewise.
 	return canonicalJSON(a) < canonicalJSON(b)
+}
+
+// compareJSONNumbers returns the sign of a-b as exact rationals, and whether the
+// comparison was exact. math/big.Rat.SetString parses decimal literals with
+// e-exponents exactly, so any valid JSON number compares precisely; exact is
+// false only if a literal fails to parse, letting the caller fall back.
+func compareJSONNumbers(a, b json.Number) (int, bool) {
+	ar, aok := new(big.Rat).SetString(a.String())
+	br, bok := new(big.Rat).SetString(b.String())
+	if !aok || !bok {
+		return 0, false
+	}
+	return ar.Cmp(br), true
 }
