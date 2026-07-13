@@ -68,6 +68,42 @@ func TestStatsJSONAndLogfmt(t *testing.T) {
 	}
 }
 
+func TestStatsReservedGroupColumnDoesNotCollide(t *testing.T) {
+	in := "{\"count\":\"alpha\"}\n{\"count\":\"alpha\"}\n{\"count\":\"beta\"}\n"
+	tests := []struct {
+		name   string
+		format string
+		want   string
+	}{
+		{
+			name:   "table",
+			format: "table",
+			want:   "group  count\nalpha  2\nbeta   1\n",
+		},
+		{
+			name:   "json",
+			format: "json",
+			want:   "{\"group\":\"alpha\",\"count\":2}\n{\"group\":\"beta\",\"count\":1}\n",
+		},
+		{
+			name:   "logfmt",
+			format: "logfmt",
+			want:   "group=alpha count=2\ngroup=beta count=1\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, out, errOut := runCLI(t, []string{"stats", "--format", tt.format, "--group-by", "count"}, in)
+			if code != 0 {
+				t.Fatalf("exit = %d, stderr=%q", code, errOut)
+			}
+			if out != tt.want {
+				t.Errorf("stdout = %q, want %q", out, tt.want)
+			}
+		})
+	}
+}
+
 func TestStatsMalformedLineContract(t *testing.T) {
 	in := "{\"level\":\"info\"}\nnot json\n{\"level\":\"info\"}\n"
 	code, out, errOut := runCLI(t, []string{"stats", "--group-by", "level"}, in)

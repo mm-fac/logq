@@ -8,6 +8,18 @@ import (
 	"github.com/mm-fac/logq"
 )
 
+// statsGroupColumn keeps the group value distinct from aggregate output keys.
+// Using a stable fallback also keeps the schema consistent with and without
+// --field for reserved group-by names.
+func statsGroupColumn(groupBy string) string {
+	switch groupBy {
+	case "count", "min", "max", "sum", "avg", "skipped":
+		return "group"
+	default:
+		return groupBy
+	}
+}
+
 func runStats(args []string, format string, strict bool, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("stats", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -45,14 +57,15 @@ func runStats(args []string, format string, strict bool, stdin io.Reader, stdout
 		fmt.Fprintf(stderr, "logq: skipped %d malformed line(s)\n", res.Skipped)
 	}
 
-	columns := []string{*groupBy, "count"}
+	groupColumn := statsGroupColumn(*groupBy)
+	columns := []string{groupColumn, "count"}
 	if *field != "" {
 		columns = append(columns, "min", "max", "sum", "avg", "skipped")
 	}
 	var rows []*logq.Record
 	for _, sg := range logq.Stats(res.Records, *groupBy, *field) {
 		row := logq.NewRecord().
-			Set(*groupBy, sg.Value).
+			Set(groupColumn, sg.Value).
 			Set("count", sg.Count)
 		if *field != "" {
 			row.Set("min", sg.Min).
