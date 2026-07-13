@@ -81,20 +81,28 @@ func TestFilterMissingFieldExcludes(t *testing.T) {
 func TestFilterBadPredicateIsUsageError(t *testing.T) {
 	for _, arg := range []string{"==info", "code>", "level=info"} {
 		code, _, errOut := runCLI(t, []string{"filter", arg}, filterSample)
-		if arg == "level=info" {
-			// A single '=' has no operator, so it is taken as a file path and
-			// fails to open (runtime error), still non-zero.
-			if code == 0 {
-				t.Errorf("filter %q exit = 0, want non-zero", arg)
-			}
-			continue
-		}
 		if code != 2 {
 			t.Errorf("filter %q exit = %d, want 2", arg, code)
 		}
 		if !strings.Contains(errOut, "invalid predicate") || !strings.Contains(errOut, "usage:") {
 			t.Errorf("filter %q stderr = %q, want invalid-predicate usage message", arg, errOut)
 		}
+	}
+}
+
+func TestFilterMalformedPredicateAfterValidIsUsageError(t *testing.T) {
+	code, out, errOut := runCLI(t, []string{"filter", "code==200", "level=info"}, filterSample)
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if out != "" {
+		t.Errorf("stdout = %q, want empty", out)
+	}
+	if !strings.Contains(errOut, "invalid predicate") || !strings.Contains(errOut, "usage:") {
+		t.Errorf("stderr = %q, want invalid-predicate usage message", errOut)
+	}
+	if strings.Contains(errOut, "open level=info") {
+		t.Errorf("malformed predicate fell through to file I/O: %q", errOut)
 	}
 }
 
