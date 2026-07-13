@@ -55,6 +55,20 @@ func TestFieldsJSONAndLogfmt(t *testing.T) {
 	}
 }
 
+func TestFieldsLogfmtEscapesFieldNameNewline(t *testing.T) {
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "fields"}, "{\"line\\nbreak\":1}\n")
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := "field=\"line\\nbreak\" types=number count=1\n"
+	if out != want {
+		t.Errorf("stdout = %q, want %q", out, want)
+	}
+	if strings.Count(out, "\n") != 1 {
+		t.Errorf("stdout contains a record-breaking newline: %q", out)
+	}
+}
+
 func TestSkippedSummaryOnStderr(t *testing.T) {
 	in := "{\"a\":1}\nnot json\n{\"a\":2}\n"
 	code, out, errOut := runCLI(t, []string{"fields"}, in)

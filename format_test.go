@@ -61,6 +61,31 @@ func TestWriteLogfmt(t *testing.T) {
 	}
 }
 
+func TestWriteLogfmtQuotesControlWhitespace(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "newline", value: "line\nbreak", want: `field="line\nbreak"` + "\n"},
+		{name: "carriage return", value: "line\rbreak", want: `field="line\rbreak"` + "\n"},
+		{name: "vertical tab", value: "line\vbreak", want: `field="line\vbreak"` + "\n"},
+		{name: "form feed", value: "line\fbreak", want: `field="line\fbreak"` + "\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			row := NewRecord().Set("field", tt.value)
+			if err := Write(&b, FormatLogfmt, []string{"field"}, []*Record{row}); err != nil {
+				t.Fatal(err)
+			}
+			if got := b.String(); got != tt.want {
+				t.Errorf("logfmt = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWriteJSON(t *testing.T) {
 	columns, rows := sampleRows()
 	var b strings.Builder

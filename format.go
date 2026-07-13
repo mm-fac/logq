@@ -192,7 +192,7 @@ func cellString(v any) string {
 // is empty or contains characters that would break `key=value` parsing.
 func logfmtValue(v any) string {
 	s := cellString(v)
-	if s == "" || strings.ContainsAny(s, " \t\"=") {
+	if s == "" || strings.ContainsAny(s, " \t\r\n\v\f\"=") {
 		return strconv.Quote(s)
 	}
 	return s
