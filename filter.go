@@ -82,7 +82,7 @@ func HasOperator(s string) bool {
 
 // Match reports whether rec satisfies the predicate.
 func (p Predicate) Match(rec *Record) bool {
-	v, ok := rec.Get(p.Field)
+	v, ok := rec.Resolve(p.Field)
 	if !ok {
 		return false // a record missing the field never matches
 	}

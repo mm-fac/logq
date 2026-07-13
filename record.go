@@ -12,8 +12,9 @@ import (
 // Key order is preserved as first-seen so that table/logfmt/json output is
 // stable and readable (e.g. a leading "ts" stays leading). Values use the
 // standard encoding/json Go types, with json.Number for numbers so digits are
-// preserved exactly. v0 treats records as opaque top-level maps; nested
-// objects/arrays are stored as-is but not indexed (no dotted-path access).
+// preserved exactly. Keys are stored as opaque top-level entries; nested
+// objects/arrays are kept as-is and can be reached by dotted-path lookup via
+// Resolve (see resolve.go), while Get and Keys stay strictly top-level.
 type Record struct {
 	keys []string
 	vals map[string]any

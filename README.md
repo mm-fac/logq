@@ -145,6 +145,35 @@ ts                    level  method  path    status  ms
 2026-07-13T00:00:06Z  error  POST    /api    503     200
 ```
 
+## Nested fields
+
+Every field-taking position — `filter` predicates, `stats --group-by`/`--field`,
+`distinct <field>`, and `sort --by` — accepts a dotted path like `user.role` to
+reach into nested JSON objects. Resolution follows two rules:
+
+- **Exact key first.** A field argument is first matched against an EXACT
+  top-level key, dots and all. Only when no such key exists is the argument split
+  on `.` and walked segment by segment (the first segment is a top-level key,
+  each later segment indexes the object reached so far). So a record that
+  literally has a top-level `"user.role"` key is read from that key, not from a
+  nested `user` → `role`.
+- **Missing on any dead end.** If an intermediate value is not an object, or a
+  segment is absent, the path resolves to "missing" — exactly as an absent
+  top-level field does (predicate false / record skipped / sorted last).
+
+`fields` remains top-level-only: it lists the outermost keys and does not expand
+nested objects.
+
+The example below runs against [`testdata/nested.jsonl`](testdata/nested.jsonl),
+whose records nest `user` and `req` objects:
+
+```
+$ ./logq stats --group-by user.role --field req.ms testdata/nested.jsonl
+user.role  count  min  max  sum  avg  skipped
+admin      2      10   50   60   30   0
+guest      2      20   30   50   25   0
+```
+
 ## Output formats
 
 Every subcommand honors `--format`. For example, the same `filter` query as

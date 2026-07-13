@@ -31,7 +31,7 @@ func Distinct(records []*Record, field string) (values []DistinctValue, missing 
 	counts := make(map[string]int)
 	vals := make(map[string]any)
 	for _, rec := range records {
-		v, ok := rec.Get(field)
+		v, ok := rec.Resolve(field)
 		if !ok {
 			missing++
 			continue
