@@ -34,7 +34,7 @@ func Stats(records []*Record, groupBy, field string) []StatsGroup {
 	var order []string
 	groups := make(map[string]*acc)
 	for _, rec := range records {
-		v, ok := rec.Get(groupBy)
+		v, ok := rec.Resolve(groupBy)
 		if !ok {
 			v = nil
 		}
@@ -50,7 +50,7 @@ func Stats(records []*Record, groupBy, field string) []StatsGroup {
 		if field == "" {
 			continue
 		}
-		fv, ok := rec.Get(field)
+		fv, ok := rec.Resolve(field)
 		n, numeric := numberValue(fv)
 		if !ok || !numeric {
 			g.group.Skipped++

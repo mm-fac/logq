@@ -27,7 +27,7 @@ func Sort(records []*Record, field string, desc bool) []*Record {
 	present := make([]*Record, 0, len(records))
 	var missing []*Record
 	for _, rec := range records {
-		if _, ok := rec.Get(field); ok {
+		if _, ok := rec.Resolve(field); ok {
 			present = append(present, rec)
 		} else {
 			missing = append(missing, rec)
@@ -35,8 +35,8 @@ func Sort(records []*Record, field string, desc bool) []*Record {
 	}
 
 	sort.SliceStable(present, func(i, j int) bool {
-		vi, _ := present[i].Get(field)
-		vj, _ := present[j].Get(field)
+		vi, _ := present[i].Resolve(field)
+		vj, _ := present[j].Resolve(field)
 		if desc {
 			return lessValue(vj, vi)
 		}
