@@ -1,0 +1,7 @@
+{"ts":"2026-07-13T00:00:01Z","level":"info","msg":"start","code":200}
+not json at all
+{"ts":"2026-07-13T00:00:02Z","level":"error","msg":"boom","code":500,"retry":true}
+
+{"ts":"2026-07-13T00:00:03Z","level":"info","msg":"ok","latency":12.5}
+{"level":"debug","tags":["a","b"],"meta":{"x":1},"code":null}
+[1,2,3]
