@@ -39,6 +39,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch cmd {
 	case "fields":
 		return runFields(cmdArgs, *format, *strict, stdin, stdout, stderr)
+	case "tail":
+		return runTail(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "logq: unknown command %q\n", cmd)
 		usage(stderr)
@@ -53,6 +55,7 @@ Reads JSON-lines from the given files (concatenated in order) or from stdin.
 
 commands:
   fields    list field keys with their observed value type(s) and record counts
+  tail      print the last N records (default 10; -n N)
 
 global flags (also accepted after the command):
   --format table|json|logfmt   output format (default table)
@@ -99,6 +102,57 @@ func runFields(args []string, format string, strict bool, stdin io.Reader, stdou
 			Set("field", fi.Name).
 			Set("types", fi.Types).
 			Set("count", fi.Count))
+	}
+	if err := logq.Write(stdout, f, columns, rows); err != nil {
+		fmt.Fprintf(stderr, "logq: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runTail(args []string, format string, strict bool, stdin io.Reader, stdout, stderr io.Writer) int {
+	// Re-register the common flags so they may also appear after the command.
+	fs := flag.NewFlagSet("tail", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.StringVar(&format, "format", format, "output format: table|json|logfmt")
+	fs.BoolVar(&strict, "strict", strict, "treat malformed input lines as a fatal error")
+	n := fs.Int("n", 10, "number of trailing records to print")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *n <= 0 {
+		fmt.Fprintf(stderr, "logq: tail -n must be a positive integer (got %d)\n", *n)
+		return 2
+	}
+
+	f, err := logq.ParseFormat(format)
+	if err != nil {
+		fmt.Fprintf(stderr, "logq: %v\n", err)
+		return 2
+	}
+
+	reader, cleanup, err := openInput(fs.Args(), stdin)
+	if err != nil {
+		fmt.Fprintf(stderr, "logq: %v\n", err)
+		return 1
+	}
+	defer cleanup()
+
+	res, err := logq.Read(reader, strict)
+	if err != nil {
+		fmt.Fprintf(stderr, "logq: %v\n", err)
+		return 1
+	}
+	if res.Skipped > 0 {
+		fmt.Fprintf(stderr, "logq: skipped %d malformed line(s)\n", res.Skipped)
+	}
+
+	rows := logq.Tail(res.Records, *n)
+	// Columns are the union of keys across the printed records, in first-seen
+	// order — the same ordering Fields computes.
+	var columns []string
+	for _, fi := range logq.Fields(rows) {
+		columns = append(columns, fi.Name)
 	}
 	if err := logq.Write(stdout, f, columns, rows); err != nil {
 		fmt.Fprintf(stderr, "logq: %v\n", err)
