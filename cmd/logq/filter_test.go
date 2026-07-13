@@ -163,6 +163,93 @@ func TestFilterTableFormat(t *testing.T) {
 	}
 }
 
+func TestFilterCountMatches(t *testing.T) {
+	// Two info records match; --count prints a single {"count":2} row.
+	code, out, errOut := runCLI(t, []string{"--format", "json", "filter", "--count", "level==info"}, filterSample)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if out != "{\"count\":2}\n" {
+		t.Errorf("stdout = %q, want single count row", out)
+	}
+}
+
+func TestFilterCountZeroMatches(t *testing.T) {
+	// No record matches; count is 0 and the exit code is still 0.
+	code, out, errOut := runCLI(t, []string{"--format", "json", "filter", "--count", "level==nope"}, filterSample)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if out != "{\"count\":0}\n" {
+		t.Errorf("stdout = %q, want count 0", out)
+	}
+}
+
+func TestFilterCountAllFormats(t *testing.T) {
+	// The count row renders through each formatter; only the presentation differs.
+	cases := []struct {
+		format string
+		want   string
+	}{
+		{"table", "count\n2\n"},
+		{"json", "{\"count\":2}\n"},
+		{"logfmt", "count=2\n"},
+	}
+	for _, tc := range cases {
+		code, out, errOut := runCLI(t, []string{"--format", tc.format, "filter", "--count", "level==info"}, filterSample)
+		if code != 0 {
+			t.Fatalf("%s: exit = %d, stderr=%q", tc.format, code, errOut)
+		}
+		if out != tc.want {
+			t.Errorf("%s: stdout = %q, want %q", tc.format, out, tc.want)
+		}
+	}
+}
+
+func TestFilterCountExcludesMalformed(t *testing.T) {
+	// mixed.jsonl has 2 malformed lines among valid records; skipped lines are
+	// never counted, so --count reports only the 2 valid info matches.
+	code, out, errOut := runCLI(t, []string{"--format", "json", "filter", "--count", "../../testdata/mixed.jsonl", "level==info"}, "")
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if !strings.Contains(errOut, "skipped 2 malformed line") {
+		t.Errorf("stderr = %q, want skipped 2", errOut)
+	}
+	if out != "{\"count\":2}\n" {
+		t.Errorf("stdout = %q, want count 2", out)
+	}
+}
+
+func TestFilterCountHonorsStrict(t *testing.T) {
+	// --strict composes with --count: a malformed line is fatal, no count prints.
+	in := "{\"a\":1}\nnot json\n{\"a\":2}\n"
+	code, out, errOut := runCLI(t, []string{"--strict", "filter", "--count", "a==1"}, in)
+	if code == 0 {
+		t.Fatalf("exit = 0, want non-zero")
+	}
+	if out != "" {
+		t.Errorf("stdout = %q, want empty", out)
+	}
+	if !strings.Contains(errOut, "line 2") {
+		t.Errorf("stderr = %q, want line 2", errOut)
+	}
+}
+
+func TestFilterCountBadPredicateIsUsageError(t *testing.T) {
+	// A malformed predicate still exits non-zero with usage on stderr under --count.
+	code, out, errOut := runCLI(t, []string{"filter", "--count", "level=info"}, filterSample)
+	if code != 2 {
+		t.Errorf("exit = %d, want 2", code)
+	}
+	if out != "" {
+		t.Errorf("stdout = %q, want empty", out)
+	}
+	if !strings.Contains(errOut, "invalid predicate") || !strings.Contains(errOut, "usage:") {
+		t.Errorf("stderr = %q, want invalid-predicate usage message", errOut)
+	}
+}
+
 func nonEmptyLines(s string) []string {
 	var out []string
 	for _, l := range strings.Split(s, "\n") {

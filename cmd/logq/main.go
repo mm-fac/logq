@@ -60,6 +60,7 @@ Reads JSON-lines from the given files (concatenated in order) or from stdin.
 commands:
   fields    list field keys with their observed value type(s) and record counts
   filter    print only records matching all given field OP value predicates
+            (--count prints just the number of matches)
   stats     group records and compute counts and optional numeric aggregations
   tail      print the last N records (default 10; -n N)
 

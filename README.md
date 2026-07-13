@@ -75,6 +75,16 @@ ts                    level  method  path  status  ms
 2026-07-13T00:00:06Z  error  POST    /api  503     200
 ```
 
+With `--count`, `filter` suppresses the records and prints only the number of
+matches as a single `{"count": N}` row, rendered through `--format` like any
+other output:
+
+```
+$ ./logq filter --count 'status>=500' testdata/events.jsonl
+count
+2
+```
+
 ### `stats`
 
 Group records by `--group-by <field>` and report the per-group record count.
