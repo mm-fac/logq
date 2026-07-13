@@ -39,6 +39,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch cmd {
 	case "fields":
 		return runFields(cmdArgs, *format, *strict, stdin, stdout, stderr)
+	case "stats":
+		return runStats(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "logq: unknown command %q\n", cmd)
 		usage(stderr)
@@ -53,6 +55,7 @@ Reads JSON-lines from the given files (concatenated in order) or from stdin.
 
 commands:
   fields    list field keys with their observed value type(s) and record counts
+  stats     group records and compute counts and optional numeric aggregations
 
 global flags (also accepted after the command):
   --format table|json|logfmt   output format (default table)

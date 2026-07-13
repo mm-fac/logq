@@ -1,0 +1,5 @@
+{"level":"info","latency":12.5}
+{"level":"error","latency":30}
+{"level":"info","latency":7.5}
+{"level":"info","latency":"slow"}
+{"level":"error","latency":"n/a"}
