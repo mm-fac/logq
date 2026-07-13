@@ -21,6 +21,7 @@ func runFilter(args []string, format string, strict bool, stdin io.Reader, stdou
 	fs.SetOutput(stderr)
 	fs.StringVar(&format, "format", format, "output format: table|json|logfmt")
 	fs.BoolVar(&strict, "strict", strict, "treat malformed input lines as a fatal error")
+	count := fs.Bool("count", false, "print only the number of matching records")
 	if err := fs.Parse(parseArgs); err != nil {
 		return 2
 	}
@@ -70,6 +71,16 @@ func runFilter(args []string, format string, strict bool, stdin io.Reader, stdou
 	}
 
 	matched := logq.Filter(res.Records, preds)
+	if *count {
+		// Count-only mode: emit a single {"count": N} record through the shared
+		// formatter so --format is honored exactly as for record output.
+		row := logq.NewRecord().Set("count", len(matched))
+		if err := logq.Write(stdout, f, []string{"count"}, []*logq.Record{row}); err != nil {
+			fmt.Fprintf(stderr, "logq: %v\n", err)
+			return 1
+		}
+		return 0
+	}
 	if err := logq.Write(stdout, f, filterColumns(matched), matched); err != nil {
 		fmt.Fprintf(stderr, "logq: %v\n", err)
 		return 1
@@ -110,11 +121,12 @@ func filterColumns(records []*logq.Record) []string {
 }
 
 func filterUsage(w io.Writer) {
-	fmt.Fprint(w, `usage: logq filter <predicate>... [files...]
+	fmt.Fprint(w, `usage: logq filter [--count] <predicate>... [files...]
 
 A predicate is `+"`field OP value`"+` with OP one of: == != > >= < <= ~
 Multiple predicates are ANDed. A number literal compares numerically,
 otherwise the comparison is on the value's string form; ~ is substring contains.
+With --count, print only the number of matching records as a {"count": N} row.
 Use -- before file names containing predicate operator characters.
 `)
 }
