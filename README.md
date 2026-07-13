@@ -50,7 +50,7 @@ List every field key seen across the records, with its observed value type(s)
 and the number of records that contained it.
 
 ```
-$ logq fields testdata/events.jsonl
+$ ./logq fields testdata/events.jsonl
 field   types   count
 ts      string  6
 level   string  6
@@ -69,7 +69,7 @@ on the value's string form; a record missing the field never matches. Quote
 predicates so the shell does not interpret `>`/`<`.
 
 ```
-$ logq filter 'status>=500' testdata/events.jsonl
+$ ./logq filter 'status>=500' testdata/events.jsonl
 ts                    level  method  path  status  ms
 2026-07-13T00:00:04Z  error  GET     /api  500     100
 2026-07-13T00:00:06Z  error  POST    /api  503     200
@@ -82,7 +82,7 @@ With `--field <numeric-field>`, also report min/max/sum/avg of that field;
 records whose value is missing or non-numeric are counted under `skipped`.
 
 ```
-$ logq stats --group-by level --field ms testdata/events.jsonl
+$ ./logq stats --group-by level --field ms testdata/events.jsonl
 level  count  min  max  sum  avg  skipped
 error  2      100  200  300  150  0
 info   3      10   30   60   20   0
@@ -94,7 +94,7 @@ warn   1      50   50   50   50   0
 Print the last N records in input order (default 10; `-n N` to change).
 
 ```
-$ logq tail -n 2 testdata/events.jsonl
+$ ./logq tail -n 2 testdata/events.jsonl
 ts                    level  method  path  status  ms
 2026-07-13T00:00:05Z  info   GET     /api  200     30
 2026-07-13T00:00:06Z  error  POST    /api  503     200
@@ -106,11 +106,11 @@ Every subcommand honors `--format`. For example, the same `filter` query as
 JSON-lines (which can be piped back into `logq`) or logfmt:
 
 ```
-$ logq --format json filter 'status>=500' testdata/events.jsonl
+$ ./logq --format json filter 'status>=500' testdata/events.jsonl
 {"ts":"2026-07-13T00:00:04Z","level":"error","method":"GET","path":"/api","status":500,"ms":100}
 {"ts":"2026-07-13T00:00:06Z","level":"error","method":"POST","path":"/api","status":503,"ms":200}
 
-$ logq --format logfmt filter 'status>=500' testdata/events.jsonl
+$ ./logq --format logfmt filter 'status>=500' testdata/events.jsonl
 ts=2026-07-13T00:00:04Z level=error method=GET path=/api status=500 ms=100
 ts=2026-07-13T00:00:06Z level=error method=POST path=/api status=503 ms=200
 ```
@@ -121,7 +121,7 @@ With no file arguments, `logq` reads stdin. The result is identical to passing
 the same data as a file:
 
 ```
-$ cat testdata/events.jsonl | logq stats --group-by level
+$ cat testdata/events.jsonl | ./logq stats --group-by level
 level  count
 error  2
 info   3
