@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -113,6 +114,76 @@ func TestFilesConcatenatedInOrder(t *testing.T) {
 	for _, l := range lines[1:] { // each field appears in all 3 records
 		if !strings.HasSuffix(l, "3") {
 			t.Errorf("expected count 3 in row %q", l)
+		}
+	}
+}
+
+// numbered builds a JSON-lines input of count records {"id":1}..{"id":count}.
+func numbered(count int) string {
+	var b strings.Builder
+	for i := 1; i <= count; i++ {
+		fmt.Fprintf(&b, "{\"id\":%d}\n", i)
+	}
+	return b.String()
+}
+
+func TestTailDefaultKeepsLast10(t *testing.T) {
+	// 12 records; the default -n 10 keeps the last 10 (id 3..12), in order.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "tail"}, numbered(12))
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	var want strings.Builder
+	for i := 3; i <= 12; i++ {
+		fmt.Fprintf(&want, "id=%d\n", i)
+	}
+	if out != want.String() {
+		t.Errorf("stdout =\n%q\nwant\n%q", out, want.String())
+	}
+	if errOut != "" {
+		t.Errorf("stderr = %q, want empty", errOut)
+	}
+}
+
+func TestTailNGreaterThanCountPrintsAll(t *testing.T) {
+	// Only 3 records, ask for 100: every record is printed, none duplicated.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "tail", "-n", "100"}, numbered(3))
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := "id=1\nid=2\nid=3\n"
+	if out != want {
+		t.Errorf("stdout = %q, want %q", out, want)
+	}
+}
+
+func TestTailHonorsFormatAndStrict(t *testing.T) {
+	// Malformed line without --strict is skipped and summarized on stderr; the
+	// last record still renders through the shared JSON formatter.
+	in := "{\"a\":1}\nnot json\n{\"a\":2}\n"
+	code, out, errOut := runCLI(t, []string{"--format", "json", "tail", "-n", "1"}, in)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if out != "{\"a\":2}\n" {
+		t.Errorf("stdout = %q, want last record as json", out)
+	}
+	if !strings.Contains(errOut, "skipped 1 malformed line") {
+		t.Errorf("stderr = %q, want skipped summary", errOut)
+	}
+}
+
+func TestTailNonPositiveNIsUsageError(t *testing.T) {
+	for _, arg := range []string{"0", "-3"} {
+		code, out, errOut := runCLI(t, []string{"tail", "-n", arg}, numbered(3))
+		if code == 0 {
+			t.Errorf("-n %s: exit = 0, want non-zero; stdout=%q", arg, out)
+		}
+		if out != "" {
+			t.Errorf("-n %s: stdout = %q, want no output", arg, out)
+		}
+		if !strings.Contains(errOut, "positive integer") {
+			t.Errorf("-n %s: stderr = %q, want usage message", arg, errOut)
 		}
 	}
 }
