@@ -110,6 +110,22 @@ ts                    level  method  path  status  ms
 2026-07-13T00:00:06Z  error  POST    /api  503     200
 ```
 
+### `distinct`
+
+List each distinct value of a top-level `<field>` with the number of records
+in which it occurred, one row per value. Values of different JSON types are
+distinct even when they render alike (the number `1` and the string `"1"`).
+Rows are sorted by each value's canonical JSON rendering, ascending. Records
+missing the field are skipped and their count is reported on stderr.
+
+```
+$ ./logq distinct level testdata/events.jsonl
+value  count
+error  2
+info   3
+warn   1
+```
+
 ## Output formats
 
 Every subcommand honors `--format`. For example, the same `filter` query as

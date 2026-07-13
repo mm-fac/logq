@@ -28,6 +28,7 @@ func subcommandCases() []subcommandCase {
 		{name: "filter", args: []string{"filter", "status>=200"}, col0: "ts"},
 		{name: "stats", args: []string{"stats", "--group-by", "level", "--field", "ms"}, col0: "level"},
 		{name: "tail", args: []string{"tail", "-n", "3"}, col0: "ts"},
+		{name: "distinct", args: []string{"distinct", "level"}, col0: "value"},
 	}
 }
 
@@ -117,6 +118,7 @@ func TestSharedMalformedContract(t *testing.T) {
 		{"filter", []string{"filter", "level==info"}},
 		{"stats", []string{"stats", "--group-by", "level"}},
 		{"tail", []string{"tail"}},
+		{"distinct", []string{"distinct", "level"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name+"/lenient", func(t *testing.T) {
