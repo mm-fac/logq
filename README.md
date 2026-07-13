@@ -126,6 +126,25 @@ info   3
 warn   1
 ```
 
+### `sort`
+
+Print all records ordered by a top-level `--by <field>`; add `--desc` to reverse
+the order. Two JSON-number values compare numerically; any other pair compares by
+canonical JSON rendering, bytewise. Records missing the field sort last (keeping
+their input order) regardless of `--desc`, and the sort is stable so ties keep
+input order.
+
+```
+$ ./logq sort --by status testdata/events.jsonl
+ts                    level  method  path    status  ms
+2026-07-13T00:00:01Z  info   GET     /       200     10
+2026-07-13T00:00:02Z  info   GET     /about  200     20
+2026-07-13T00:00:05Z  info   GET     /api    200     30
+2026-07-13T00:00:03Z  warn   POST    /login  401     50
+2026-07-13T00:00:04Z  error  GET     /api    500     100
+2026-07-13T00:00:06Z  error  POST    /api    503     200
+```
+
 ## Output formats
 
 Every subcommand honors `--format`. For example, the same `filter` query as

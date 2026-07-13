@@ -47,6 +47,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTail(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	case "distinct":
 		return runDistinct(cmdArgs, *format, *strict, stdin, stdout, stderr)
+	case "sort":
+		return runSort(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "logq: unknown command %q\n", cmd)
 		usage(stderr)
@@ -66,6 +68,7 @@ commands:
   stats     group records and compute counts and optional numeric aggregations
   tail      print the last N records (default 10; -n N)
   distinct  list each distinct value of a field with its occurrence count
+  sort      print all records ordered by a top-level field (--by, --desc)
 
 global flags (also accepted after the command):
   --format table|json|logfmt   output format (default table)
