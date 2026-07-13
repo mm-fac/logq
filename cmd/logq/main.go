@@ -39,6 +39,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch cmd {
 	case "fields":
 		return runFields(cmdArgs, *format, *strict, stdin, stdout, stderr)
+	case "filter":
+		return runFilter(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	case "stats":
 		return runStats(cmdArgs, *format, *strict, stdin, stdout, stderr)
 	case "tail":
@@ -57,6 +59,7 @@ Reads JSON-lines from the given files (concatenated in order) or from stdin.
 
 commands:
   fields    list field keys with their observed value type(s) and record counts
+  filter    print only records matching all given field OP value predicates
   stats     group records and compute counts and optional numeric aggregations
   tail      print the last N records (default 10; -n N)
 
