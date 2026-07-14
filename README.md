@@ -166,6 +166,17 @@ info   3
 warn   1
 ```
 
+Add `--top N` to keep only the `N` most frequent values, ordered by count
+descending (ties broken by canonical JSON rendering, ascending). `N` must be a
+positive integer.
+
+```
+$ ./logq distinct level --top 2 testdata/events.jsonl
+value  count
+info   3
+error  2
+```
+
 ### `sort`
 
 Print all records ordered by a top-level `--by <field>`; add `--desc` to reverse

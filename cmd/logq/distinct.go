@@ -21,19 +21,47 @@ func runDistinct(args []string, format string, strict bool, stdin io.Reader, std
 	fs.SetOutput(stderr)
 	fs.StringVar(&format, "format", format, "output format: table|json|logfmt")
 	fs.BoolVar(&strict, "strict", strict, "treat malformed input lines as a fatal error")
-	if err := fs.Parse(args); err != nil {
+	top := fs.Int("top", 0, "limit output to the N most frequent values")
+
+	// Parse flags that may appear either before or after the positional
+	// arguments: stdlib flag stops at the first non-flag, so consume positionals
+	// one at a time and re-parse the remainder. --top N thus works after <field>.
+	var positional []string
+	remaining := args
+	for {
+		if err := fs.Parse(remaining); err != nil {
+			return 2
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		positional = append(positional, rest[0])
+		remaining = rest[1:]
+	}
+
+	// Distinguish an explicit --top from its zero default so that --top 0 is a
+	// usage error rather than a no-op.
+	topSet := false
+	fs.Visit(func(fl *flag.Flag) {
+		if fl.Name == "top" {
+			topSet = true
+		}
+	})
+	if topSet && *top <= 0 {
+		fmt.Fprintf(stderr, "logq: distinct --top must be a positive integer (got %d)\n", *top)
+		distinctUsage(stderr)
 		return 2
 	}
 
-	rest := fs.Args()
-	if len(rest) == 0 {
+	if len(positional) == 0 {
 		fmt.Fprintln(stderr, "logq: distinct requires a <field> argument")
 		distinctUsage(stderr)
 		return 2
 	}
 	// The first positional is the field; any remaining positionals are input
 	// files (global input handling).
-	field, files := rest[0], rest[1:]
+	field, files := positional[0], positional[1:]
 
 	f, err := logq.ParseFormat(format)
 	if err != nil {
@@ -61,6 +89,9 @@ func runDistinct(args []string, format string, strict bool, stdin io.Reader, std
 	if missing > 0 {
 		fmt.Fprintf(stderr, "logq: skipped %d record(s) missing field %q\n", missing, field)
 	}
+	if topSet {
+		values = logq.TopN(values, *top)
+	}
 
 	columns := []string{"value", "count"}
 	var rows []*logq.Record
@@ -77,11 +108,15 @@ func runDistinct(args []string, format string, strict bool, stdin io.Reader, std
 }
 
 func distinctUsage(w io.Writer) {
-	fmt.Fprint(w, `usage: logq distinct <field> [files...]
+	fmt.Fprint(w, `usage: logq distinct <field> [--top N] [files...]
 
 List each distinct value of the top-level <field> with its occurrence count,
 one row per value. Values of different JSON types are distinct even when they
 render alike (1 vs "1"). Rows are sorted by the value's canonical JSON
 rendering. Records missing the field are skipped and counted on stderr.
+
+With --top N, print only the N most frequent values, ordered by count
+descending (ties broken by canonical JSON rendering, ascending). N must be a
+positive integer.
 `)
 }
