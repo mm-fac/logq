@@ -90,10 +90,20 @@ func (p Predicate) Match(rec *Record) bool {
 		return strings.Contains(cellString(v), p.Value)
 	}
 	if p.numeric {
-		rv, ok := numericValue(v)
+		lit, ok := numberLiteral(v)
 		if !ok {
 			return false // non-numeric value can't compare to a numeric literal
 		}
+		// Compare the record value and the predicate literal exactly as rationals
+		// (mirroring sort) so giant integers and out-of-float-range magnitudes
+		// compare correctly rather than via a lossy float64 round-trip.
+		if sign, exact := CompareJSONNumbers(lit, json.Number(p.Value)); exact {
+			return compareSign(sign, p.Op)
+		}
+		// A literal that ParseFloat accepted but big.Rat could not parse (e.g. a
+		// hex float): fall back to the float64 comparison so behavior for such
+		// exotic literals is unchanged.
+		rv, _ := numericValue(v)
 		return compareNumbers(rv, p.num, p.Op)
 	}
 	return compareStrings(cellString(v), p.Value, p.Op)
@@ -118,6 +128,42 @@ func matchesAll(rec *Record, preds []Predicate) bool {
 		}
 	}
 	return true
+}
+
+// numberLiteral returns the raw JSON-number literal of a record value when the
+// value is a JSON number, for exact comparison via CompareJSONNumbers. A
+// json.Number carries its literal verbatim; a float64 (which the reader never
+// produces, but which callers may Set directly) is formatted to its shortest
+// exact decimal. Non-number values are not numerically comparable.
+func numberLiteral(v any) (json.Number, bool) {
+	switch t := v.(type) {
+	case json.Number:
+		return t, true
+	case float64:
+		return json.Number(strconv.FormatFloat(t, 'g', -1, 64)), true
+	default:
+		return "", false
+	}
+}
+
+// compareSign maps the sign of a-b (as returned by CompareJSONNumbers) and a
+// comparison operator to whether the predicate holds.
+func compareSign(sign int, op string) bool {
+	switch op {
+	case "==":
+		return sign == 0
+	case "!=":
+		return sign != 0
+	case ">":
+		return sign > 0
+	case ">=":
+		return sign >= 0
+	case "<":
+		return sign < 0
+	case "<=":
+		return sign <= 0
+	}
+	return false
 }
 
 // numericValue extracts a float64 from a JSON number value. Non-number values

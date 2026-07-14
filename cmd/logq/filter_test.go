@@ -250,6 +250,32 @@ func TestFilterCountBadPredicateIsUsageError(t *testing.T) {
 	}
 }
 
+// TestFilterExactNumericComparisonAllFormats drives the exact-comparison README
+// example end-to-end against the committed fixture across all three formats. The
+// fixture's 9007199254740993 sits one past float64's mantissa: a float-based
+// comparator would drop it from `n>9007199254740992`, and every format must
+// render the giant integers losslessly.
+func TestFilterExactNumericComparisonAllFormats(t *testing.T) {
+	const fixture = "../../testdata/bignum.jsonl"
+	cases := []struct {
+		format string
+		want   string
+	}{
+		{"table", "id     n\nexact  9007199254740993\nnext   9007199254740994\n"},
+		{"json", "{\"id\":\"exact\",\"n\":9007199254740993}\n{\"id\":\"next\",\"n\":9007199254740994}\n"},
+		{"logfmt", "id=exact n=9007199254740993\nid=next n=9007199254740994\n"},
+	}
+	for _, tc := range cases {
+		code, out, errOut := runCLI(t, []string{"--format", tc.format, "filter", "n>9007199254740992", fixture}, "")
+		if code != 0 {
+			t.Fatalf("%s: exit = %d, stderr=%q", tc.format, code, errOut)
+		}
+		if out != tc.want {
+			t.Errorf("%s: stdout = %q, want %q", tc.format, out, tc.want)
+		}
+	}
+}
+
 func nonEmptyLines(s string) []string {
 	var out []string
 	for _, l := range strings.Split(s, "\n") {
