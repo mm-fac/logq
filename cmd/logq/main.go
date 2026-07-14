@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/mm-fac/logq"
@@ -65,6 +66,7 @@ Reads JSON-lines from the given files (concatenated in order) or from stdin.
 
 commands:
   fields    list field keys with their observed value type(s) and record counts
+            (--sort orders the listing by field name)
   filter    print only records matching all given field OP value predicates
             (--count prints just the number of matches)
   stats     group records and compute counts and optional numeric aggregations
@@ -85,6 +87,7 @@ func runFields(args []string, format string, strict bool, stdin io.Reader, stdou
 	fs.SetOutput(stderr)
 	fs.StringVar(&format, "format", format, "output format: table|json|logfmt")
 	fs.BoolVar(&strict, "strict", strict, "treat malformed input lines as a fatal error")
+	sortByName := fs.Bool("sort", false, "list fields sorted by name instead of first-seen order")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -111,9 +114,17 @@ func runFields(args []string, format string, strict bool, stdin io.Reader, stdou
 		fmt.Fprintf(stderr, "logq: skipped %d malformed line(s)\n", res.Skipped)
 	}
 
+	fields := logq.Fields(res.Records)
+	if *sortByName {
+		// Field names are unique, so ordering by name is a total order and the
+		// output is fully deterministic. Without --sort the slice is left in
+		// first-seen order, unchanged.
+		sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	}
+
 	columns := []string{"field", "types", "count"}
 	var rows []*logq.Record
-	for _, fi := range logq.Fields(res.Records) {
+	for _, fi := range fields {
 		rows = append(rows, logq.NewRecord().
 			Set("field", fi.Name).
 			Set("types", fi.Types).
