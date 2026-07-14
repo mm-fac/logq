@@ -60,6 +60,20 @@ status  number  6
 ms      number  6
 ```
 
+Fields are listed in first-seen order by default. Pass `--sort` to order the
+listing by field name instead, for stable, diff-friendly output:
+
+```
+$ ./logq fields --sort testdata/events.jsonl
+field   types   count
+level   string  6
+method  string  6
+ms      number  6
+path    string  6
+status  number  6
+ts      string  6
+```
+
 ### `filter`
 
 Print only the records matching all of the given `field OP value` predicates

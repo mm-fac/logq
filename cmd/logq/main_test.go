@@ -37,6 +37,74 @@ func TestFieldsTableDefault(t *testing.T) {
 	}
 }
 
+func TestFieldsSortOrdersByName(t *testing.T) {
+	// --sort lists fields alphabetically by name rather than first-seen order.
+	code, out, errOut := runCLI(t, []string{"fields", "--sort"}, sample)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := "field    types          count\n" +
+		"code     number,string  2\n" +
+		"latency  number         1\n" +
+		"level    string         3\n" +
+		"msg      string         2\n" +
+		"retry    bool           1\n"
+	if out != want {
+		t.Errorf("stdout =\n%q\nwant\n%q", out, want)
+	}
+	if errOut != "" {
+		t.Errorf("stderr = %q, want empty", errOut)
+	}
+}
+
+func TestFieldsWithoutSortIsFirstSeenOrder(t *testing.T) {
+	// The default (no --sort) output must be byte-for-byte the first-seen order,
+	// unchanged by the new flag.
+	_, sorted, _ := runCLI(t, []string{"fields", "--sort"}, sample)
+	_, plain, _ := runCLI(t, []string{"fields"}, sample)
+	if plain == sorted {
+		t.Fatalf("sorted and unsorted output are identical; sample does not exercise the flag")
+	}
+	want := "field    types          count\n" +
+		"level    string         3\n" +
+		"code     number,string  2\n" +
+		"msg      string         2\n" +
+		"retry    bool           1\n" +
+		"latency  number         1\n"
+	if plain != want {
+		t.Errorf("unsorted stdout =\n%q\nwant\n%q", plain, want)
+	}
+}
+
+func TestFieldsSortHonorsFormat(t *testing.T) {
+	// --sort composes with --format (order applies before rendering) and the
+	// flag is accepted after the subcommand too.
+	code, out, errOut := runCLI(t, []string{"fields", "--sort", "--format", "json"}, sample)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := `{"field":"code","types":["number","string"],"count":2}` + "\n" +
+		`{"field":"latency","types":["number"],"count":1}` + "\n" +
+		`{"field":"level","types":["string"],"count":3}` + "\n" +
+		`{"field":"msg","types":["string"],"count":2}` + "\n" +
+		`{"field":"retry","types":["bool"],"count":1}` + "\n"
+	if out != want {
+		t.Errorf("stdout =\n%q\nwant\n%q", out, want)
+	}
+}
+
+func TestFieldsSortHonorsStrict(t *testing.T) {
+	// --sort still surfaces a malformed line as a fatal error under --strict.
+	in := "{\"b\":1}\nnot json\n{\"a\":2}\n"
+	code, out, errOut := runCLI(t, []string{"--strict", "fields", "--sort"}, in)
+	if code == 0 {
+		t.Fatalf("exit = 0, want non-zero; stdout=%q", out)
+	}
+	if !strings.Contains(errOut, "line 2") {
+		t.Errorf("stderr = %q, want line 2", errOut)
+	}
+}
+
 func TestFieldsJSONAndLogfmt(t *testing.T) {
 	code, out, _ := runCLI(t, []string{"--format", "json", "fields"}, sample)
 	if code != 0 {
