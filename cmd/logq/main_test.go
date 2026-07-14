@@ -188,6 +188,116 @@ func TestTailNonPositiveNIsUsageError(t *testing.T) {
 	}
 }
 
+func TestHeadDefaultKeepsFirst10(t *testing.T) {
+	// 12 records; the default -n 10 keeps the first 10 (id 1..10), in order.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "head"}, numbered(12))
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	var want strings.Builder
+	for i := 1; i <= 10; i++ {
+		fmt.Fprintf(&want, "id=%d\n", i)
+	}
+	if out != want.String() {
+		t.Errorf("stdout =\n%q\nwant\n%q", out, want.String())
+	}
+	if errOut != "" {
+		t.Errorf("stderr = %q, want empty", errOut)
+	}
+}
+
+func TestHeadNHonored(t *testing.T) {
+	// -n 2 keeps only the first two records.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "head", "-n", "2"}, numbered(5))
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if out != "id=1\nid=2\n" {
+		t.Errorf("stdout = %q, want first two records", out)
+	}
+}
+
+func TestHeadNGreaterThanCountPrintsAll(t *testing.T) {
+	// Only 3 records, ask for 100: every record is printed, none duplicated.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "head", "-n", "100"}, numbered(3))
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	want := "id=1\nid=2\nid=3\n"
+	if out != want {
+		t.Errorf("stdout = %q, want %q", out, want)
+	}
+}
+
+func TestHeadHonorsFormats(t *testing.T) {
+	// The first record renders through each of the three shared formatters.
+	in := numbered(3)
+	cases := []struct{ format, want string }{
+		{"table", "id\n1\n"},
+		{"json", "{\"id\":1}\n"},
+		{"logfmt", "id=1\n"},
+	}
+	for _, tc := range cases {
+		code, out, errOut := runCLI(t, []string{"--format", tc.format, "head", "-n", "1"}, in)
+		if code != 0 {
+			t.Fatalf("%s: exit = %d, stderr=%q", tc.format, code, errOut)
+		}
+		if out != tc.want {
+			t.Errorf("%s: stdout = %q, want %q", tc.format, out, tc.want)
+		}
+	}
+}
+
+func TestHeadHonorsStrictAndSkip(t *testing.T) {
+	// Malformed line without --strict is skipped and summarized on stderr; the
+	// first valid record still renders. With --strict it becomes a fatal error.
+	in := "not json\n{\"a\":1}\n{\"a\":2}\n"
+	code, out, errOut := runCLI(t, []string{"--format", "json", "head", "-n", "1"}, in)
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if out != "{\"a\":1}\n" {
+		t.Errorf("stdout = %q, want first valid record as json", out)
+	}
+	if !strings.Contains(errOut, "skipped 1 malformed line") {
+		t.Errorf("stderr = %q, want skipped summary", errOut)
+	}
+
+	code, out, errOut = runCLI(t, []string{"--strict", "head"}, in)
+	if code == 0 {
+		t.Fatalf("strict: exit = 0, want non-zero; stdout=%q", out)
+	}
+	if !strings.Contains(errOut, "line 1") {
+		t.Errorf("strict: stderr = %q, want line 1", errOut)
+	}
+}
+
+func TestHeadNonPositiveNIsUsageError(t *testing.T) {
+	for _, arg := range []string{"0", "-3"} {
+		code, out, errOut := runCLI(t, []string{"head", "-n", arg}, numbered(3))
+		if code == 0 {
+			t.Errorf("-n %s: exit = 0, want non-zero; stdout=%q", arg, out)
+		}
+		if out != "" {
+			t.Errorf("-n %s: stdout = %q, want no output", arg, out)
+		}
+		if !strings.Contains(errOut, "positive integer") {
+			t.Errorf("-n %s: stderr = %q, want usage message", arg, errOut)
+		}
+	}
+}
+
+func TestHeadFromFileArg(t *testing.T) {
+	// Input from a file argument rather than stdin.
+	code, out, errOut := runCLI(t, []string{"--format", "logfmt", "head", "-n", "1", "../../testdata/events.jsonl"}, "")
+	if code != 0 {
+		t.Fatalf("exit = %d, stderr=%q", code, errOut)
+	}
+	if !strings.HasPrefix(out, "ts=2026-07-13T00:00:01Z") {
+		t.Errorf("stdout = %q, want first event record", out)
+	}
+}
+
 func TestBadFormatIsUsageError(t *testing.T) {
 	code, _, errOut := runCLI(t, []string{"--format", "yaml", "fields"}, sample)
 	if code != 2 {

@@ -126,6 +126,19 @@ $ printf '%s\n' '{"group":"all","n":9007199254740992}' '{"group":"all","n":90071
 {"group":"all","count":2,"min":9007199254740992,"max":9007199254740993,"sum":18014398509481985,"avg":9007199254740992,"skipped":0}
 ```
 
+### `head`
+
+Print the first N records in input order (default 10; `-n N` to change). N
+greater than the record count prints them all; `-n 0` or a negative N is a usage
+error. The symmetric counterpart of `tail`.
+
+```
+$ ./logq head -n 2 testdata/events.jsonl
+ts                    level  method  path    status  ms
+2026-07-13T00:00:01Z  info   GET     /       200     10
+2026-07-13T00:00:02Z  info   GET     /about  200     20
+```
+
 ### `tail`
 
 Print the last N records in input order (default 10; `-n N` to change).
