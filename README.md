@@ -85,6 +85,21 @@ count
 2
 ```
 
+Numeric predicates compare exactly, over the raw JSON-number literals, so values
+that a float64 round-trip would corrupt still compare correctly — integers past
+`2^53` do not collapse together, and magnitudes past float64's range do not all
+overflow to infinity. In [`testdata/bignum.jsonl`](testdata/bignum.jsonl) the
+value `9007199254740993` is one greater than `9007199254740992`, yet both round
+to the same float64; the exact comparison still keeps them apart, so
+`n>9007199254740992` matches the larger records and prints their digits verbatim:
+
+```
+$ ./logq filter 'n>9007199254740992' testdata/bignum.jsonl
+id     n
+exact  9007199254740993
+next   9007199254740994
+```
+
 ### `stats`
 
 Group records by `--group-by <field>` and report the per-group record count.
