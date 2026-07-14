@@ -105,6 +105,10 @@ next   9007199254740994
 Group records by `--group-by <field>` and report the per-group record count.
 With `--field <numeric-field>`, also report min/max/sum/avg of that field;
 records whose value is missing or non-numeric are counted under `skipped`.
+Min and max compare JSON numbers exactly and print the original literal selected
+from the input. Sum is also exact when every value in a group is an integer
+literal; a non-integer value makes that group's sum use `float64`. Average is
+always a `float64` approximation in v0.2.
 
 ```
 $ ./logq stats --group-by level --field ms testdata/events.jsonl
@@ -112,6 +116,14 @@ level  count  min  max  sum  avg  skipped
 error  2      100  200  300  150  0
 info   3      10   30   60   20   0
 warn   1      50   50   50   50   0
+```
+
+Exact selection and integer summation preserve values beyond the `float64`
+integer range:
+
+```
+$ printf '%s\n' '{"group":"all","n":9007199254740992}' '{"group":"all","n":9007199254740993}' | ./logq stats --format json --group-by group --field n
+{"group":"all","count":2,"min":9007199254740992,"max":9007199254740993,"sum":18014398509481985,"avg":9007199254740992,"skipped":0}
 ```
 
 ### `tail`

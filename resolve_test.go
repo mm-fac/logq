@@ -159,10 +159,10 @@ func TestStatsNestedGroupByAndField(t *testing.T) {
 	}
 	// Groups are ordered by canonical key: "admin" before "guest".
 	admin, guest := groups[0], groups[1]
-	if admin.Value != "admin" || admin.Count != 2 || admin.NumericCount != 2 || admin.Sum != 40 || admin.Avg != 20 {
+	if admin.Value != "admin" || admin.Count != 2 || admin.NumericCount != 2 || admin.Sum != json.Number("40") || admin.Avg != 20 {
 		t.Errorf("admin group = %+v", admin)
 	}
-	if guest.Value != "guest" || guest.Count != 2 || guest.NumericCount != 1 || guest.Skipped != 1 || guest.Sum != 50 {
+	if guest.Value != "guest" || guest.Count != 2 || guest.NumericCount != 1 || guest.Skipped != 1 || guest.Sum != json.Number("50") {
 		t.Errorf("guest group = %+v", guest)
 	}
 }
