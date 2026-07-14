@@ -54,6 +54,12 @@ func TestStatsJSONAndLogfmt(t *testing.T) {
 			want: "level=error count=2\n" +
 				"level=info count=3\n",
 		},
+		{
+			name: "logfmt aggregates",
+			args: []string{"stats", "--format", "logfmt", "--group-by", "level", "--field", "latency", statsFixture},
+			want: "level=error count=2 min=30 max=30 sum=30 avg=30 skipped=1\n" +
+				"level=info count=3 min=7.5 max=12.5 sum=20 avg=10 skipped=1\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -63,6 +69,52 @@ func TestStatsJSONAndLogfmt(t *testing.T) {
 			}
 			if out != tt.want {
 				t.Errorf("stdout =\n%q\nwant\n%q", out, tt.want)
+			}
+		})
+	}
+}
+
+func TestStatsExactAggregatesInAllFormats(t *testing.T) {
+	in := "{\"group\":\"all\",\"n\":9007199254740992}\n" +
+		"{\"group\":\"all\",\"n\":9007199254740993}\n"
+	tests := []struct {
+		name   string
+		format string
+		want   string
+	}{
+		{
+			name:   "table",
+			format: "table",
+			want:   "all 2 9007199254740992 9007199254740993 18014398509481985",
+		},
+		{
+			name:   "json",
+			format: "json",
+			want:   `"min":9007199254740992,"max":9007199254740993,"sum":18014398509481985`,
+		},
+		{
+			name:   "logfmt",
+			format: "logfmt",
+			want:   "min=9007199254740992 max=9007199254740993 sum=18014398509481985",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, out, errOut := runCLI(t, []string{"stats", "--format", tt.format, "--group-by", "group", "--field", "n"}, in)
+			if code != 0 {
+				t.Fatalf("exit = %d, stderr=%q", code, errOut)
+			}
+			if tt.format == "table" {
+				lines := strings.Split(strings.TrimSpace(out), "\n")
+				if len(lines) != 2 {
+					t.Fatalf("stdout = %q, want header and one data row", out)
+				}
+				fields := strings.Fields(lines[1])
+				if len(fields) < 5 || strings.Join(fields[:5], " ") != tt.want {
+					t.Fatalf("stdout = %q, want exact min/max/sum row %q", out, tt.want)
+				}
+			} else if !strings.Contains(out, tt.want) {
+				t.Errorf("stdout = %q, want exact aggregate fragment %q", out, tt.want)
 			}
 		})
 	}
